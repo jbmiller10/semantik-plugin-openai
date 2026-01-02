@@ -151,11 +151,13 @@ class OpenAIEmbeddingPlugin(BaseEmbeddingPlugin):
         self._initialized: bool = False
         self._client: AsyncOpenAI | None = None
 
-        # Extract config if it's a dict, otherwise use kwargs
+        # Extract config - check for plugin_config kwarg from factory
         if isinstance(config, dict):
             self._plugin_config = config
+        elif "plugin_config" in kwargs:
+            self._plugin_config = kwargs["plugin_config"]
         else:
-            self._plugin_config = kwargs
+            self._plugin_config = {}
 
     @classmethod
     def get_definition(cls) -> EmbeddingProviderDefinition:
