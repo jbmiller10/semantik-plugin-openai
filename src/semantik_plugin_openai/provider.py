@@ -23,7 +23,9 @@ except ImportError as e:
 # These imports work when Semantik is installed
 try:
     from shared.embedding.plugin_base import BaseEmbeddingPlugin, EmbeddingProviderDefinition
+    from shared.embedding.models import ModelConfig
 except ImportError:
+    ModelConfig = None  # type: ignore[misc,assignment]
     # Fallback for standalone development/testing
     from abc import ABC, abstractmethod
 
@@ -179,6 +181,61 @@ class OpenAIEmbeddingPlugin(BaseEmbeddingPlugin):
             },
             is_plugin=True,
         )
+
+    @classmethod
+    def get_config_schema(cls) -> dict[str, Any]:
+        """Return JSON Schema for plugin configuration."""
+        return {
+            "type": "object",
+            "properties": {
+                "api_key": {
+                    "type": "string",
+                    "description": "OpenAI API key (starts with sk-)",
+                    "format": "password",
+                },
+                "api_key_env": {
+                    "type": "string",
+                    "description": "Environment variable name containing the API key (alternative to api_key)",
+                    "default": "OPENAI_API_KEY",
+                },
+                "organization": {
+                    "type": "string",
+                    "description": "OpenAI organization ID (optional)",
+                },
+                "model": {
+                    "type": "string",
+                    "description": "Default embedding model to use",
+                    "enum": list(cls.SUPPORTED_MODELS.keys()),
+                    "default": "text-embedding-3-small",
+                },
+            },
+        }
+
+    @classmethod
+    def list_supported_models(cls) -> list[Any]:
+        """List all models supported by this plugin.
+
+        Returns:
+            List of ModelConfig objects for supported models
+        """
+        if ModelConfig is None:
+            return []
+
+        models = []
+        for model_name, dimension in cls.SUPPORTED_MODELS.items():
+            info = cls.MODEL_INFO.get(model_name, {})
+            models.append(
+                ModelConfig(
+                    name=model_name,
+                    dimension=dimension,
+                    description=info.get("description", f"OpenAI {model_name}"),
+                    max_sequence_length=info.get("max_sequence_length", 8191),
+                    supports_quantization=False,  # API returns float
+                    recommended_quantization="float32",
+                    is_asymmetric=False,
+                )
+            )
+        return models
 
     @classmethod
     def supports_model(cls, model_name: str) -> bool:
