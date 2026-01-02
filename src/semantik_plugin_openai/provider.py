@@ -257,6 +257,44 @@ class OpenAIEmbeddingPlugin(BaseEmbeddingPlugin):
 
         return False
 
+    @classmethod
+    def get_model_config(cls, model_name: str) -> Any:
+        """Get configuration for a specific model.
+
+        Returns ModelConfig for models this plugin supports.
+
+        Args:
+            model_name: Model identifier (e.g., 'text-embedding-3-small')
+
+        Returns:
+            ModelConfig if model is supported, None otherwise
+        """
+        if ModelConfig is None:
+            return None
+
+        # Normalize model name
+        normalized = cls._normalize_model_name_static(model_name)
+        if normalized not in cls.SUPPORTED_MODELS:
+            return None
+
+        info = cls.MODEL_INFO.get(normalized, {})
+        return ModelConfig(
+            name=normalized,
+            dimension=cls.SUPPORTED_MODELS[normalized],
+            description=info.get("description", f"OpenAI {normalized}"),
+            max_sequence_length=info.get("max_sequence_length", 8191),
+            supports_quantization=False,
+            recommended_quantization="float32",
+            is_asymmetric=False,
+        )
+
+    @classmethod
+    def _normalize_model_name_static(cls, model_name: str) -> str:
+        """Normalize model name, removing any prefix (static version)."""
+        if model_name.startswith("openai/"):
+            return model_name[7:]
+        return model_name
+
     def _get_api_key(self) -> str:
         """Get the OpenAI API key from config or environment."""
         # Check plugin config first
